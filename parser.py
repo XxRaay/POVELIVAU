@@ -509,6 +509,20 @@ class Parser:
             high = self.parse_atom()
             return RandomNode(line=line, low=low, high=high)
 
+        # HTTP GET: из земель дальних призвать весть по адресу <URL>
+        if self.at_kw('из земель дальних призвать весть по адресу'):
+            self.advance()
+            url = self.parse_atom()
+            return HttpGetNode(line=line, url=url)
+
+        # HTTP POST: из земель дальних послать весть по адресу <URL> с содержимым <BODY>
+        if self.at_kw('из земель дальних послать весть по адресу'):
+            self.advance()
+            url = self.parse_atom()
+            self.expect_kw('с содержимым')
+            body = self.parse_atom()
+            return HttpPostNode(line=line, url=url, body=body)
+
         # длина дружины <expr>
         if self.at_kw('длина дружины'):
             self.advance()

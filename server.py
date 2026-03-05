@@ -109,7 +109,7 @@ class IDEHandler(BaseHTTPRequestHandler):
         except subprocess.TimeoutExpired:
             return {
                 "stdout": "",
-                "stderr": "⚔ Свиток исполнялся слишком долго и был прерван (таймаут 10 сек).",
+                "stderr": "⚔ Свиток исполнялся слишком долго и был прерван",
                 "returncode": -1,
             }
         except Exception as e:

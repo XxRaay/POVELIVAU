@@ -8,6 +8,7 @@ from errors import (
     TypePovelError, ReturnSignal, BreakSignal, ContinueSignal
 )
 import stdlib
+import requests
 
 
 class Environment:
@@ -285,6 +286,27 @@ class Interpreter:
     def visit_ExitNode(self, node: ExitNode):
         print("— Всё. Почиваю. —")
         sys.exit(0)
+
+    def visit_HttpGetNode(self, node: HttpGetNode) -> str:
+        url = self.execute(node.url)
+        try:
+            response = requests.get(url, timeout=5)
+        except requests.RequestException as exc:
+            raise PovelRuntimeError(
+                f"Вестник не смог достигнуть земель по адресу '{url}': {exc}"
+            )
+        return response.text
+
+    def visit_HttpPostNode(self, node: HttpPostNode) -> str:
+        url = self.execute(node.url)
+        body = self.execute(node.body)
+        try:
+            response = requests.post(url, data=str(body), timeout=5)
+        except requests.RequestException as exc:
+            raise PovelRuntimeError(
+                f"Вестник с вестью не дошёл до земель по адресу '{url}': {exc}"
+            )
+        return response.text
 
     # ── RangeNode (используется только в ForNode) ────────────────────
     def visit_RangeNode(self, node: RangeNode):

@@ -173,3 +173,14 @@ class LenNode(Node):
 @dataclass
 class ExitNode(Node):
     pass
+
+
+@dataclass
+class HttpGetNode(Node):
+    url: 'Node'
+
+
+@dataclass
+class HttpPostNode(Node):
+    url: 'Node'
+    body: 'Node'

@@ -12,6 +12,7 @@ from lexer import Lexer
 from parser import Parser
 from interpreter import Interpreter
 from errors import PovelError, UndefinedVariableError, DivisionByZeroError, ParseError
+import requests
 
 
 def run(source: str, inputs=None) -> str:
@@ -333,6 +334,35 @@ class TestProgramStructure(unittest.TestCase):
             run("""
 Коловрат покуда 1 меньше 2:
 Повелеваю: Пресечь бег сего коловрата,
+""")
+
+
+class TestHttp(unittest.TestCase):
+
+    def test_http_get(self):
+        with patch('requests.get') as mock_get:
+            mock_get.return_value.text = "OK"
+            out = run("""
+Повелеваю: Отныне из земель дальних призвать весть по адресу "https://example.com" именоваться Ответ,
+Вещаю: "[Ответ]",
+""")
+        self.assertEqual(out, "OK")
+
+    def test_http_post(self):
+        with patch('requests.post') as mock_post:
+            mock_post.return_value.text = "POSTED"
+            out = run("""
+Повелеваю: Отныне из земель дальних послать весть по адресу "https://example.com/api" с содержимым "Тело" именоваться Ответ,
+Вещаю: "[Ответ]",
+""")
+        self.assertEqual(out, "POSTED")
+
+    def test_http_get_error_raises_povelruntime(self):
+        with patch('requests.get') as mock_get:
+            mock_get.side_effect = requests.RequestException("network down")
+            with self.assertRaises(PovelError):
+                run("""
+Повелеваю: Отныне из земель дальних призвать весть по адресу "https://bad.example" именоваться Ответ,
 """)
 
 
