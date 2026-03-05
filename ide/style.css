@@ -347,28 +347,6 @@ html, body {
   overflow: hidden;
 }
 
-/* STDIN */
-#stdin-panel {
-  display: flex;
-  flex-direction: column;
-  flex: 0 0 175px;
-  border-bottom: 1px solid var(--border);
-  overflow: hidden;
-}
-#stdin-input {
-  flex: 1;
-  background: var(--bg2);
-  color: #89b4d4;
-  font-family: var(--font-code);
-  font-size: 13px;
-  line-height: var(--line-h);
-  padding: 12px var(--pad);
-  border: none;
-  outline: none;
-  resize: none;
-  caret-color: var(--gold);
-}
-
 /* КОНСОЛЬ */
 #console-panel {
   display: flex;
@@ -419,6 +397,51 @@ html, body {
   transition: all .15s;
 }
 .btn-clear:hover { color: var(--text-dim); border-color: var(--gold-dim); }
+
+/* Ввод stdin прямо под консолью */
+#stdin-inline {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+  padding: 8px var(--pad) 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.stdin-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-code);
+  font-size: 11px;
+  color: var(--text-ghost);
+}
+.stdin-label {
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--text-faint);
+}
+.stdin-hint {
+  font-size: 10px;
+}
+#stdin-input {
+  background: var(--bg3);
+  color: #89b4d4;
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: var(--line-h);
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  outline: none;
+  resize: vertical;
+  min-height: 60px;
+  max-height: 140px;
+  caret-color: var(--gold);
+}
+#stdin-input::placeholder {
+  color: var(--text-ghost);
+}
 
 /* ══ МОДАЛКА ════════════════════════════════════════= */
 #modal-overlay {

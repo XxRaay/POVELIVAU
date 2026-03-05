@@ -26,6 +26,11 @@ python main.py --repl
 
 # Запустить тесты
 python tests/test_interpreter.py
+
+# Запустить веб-IDE (онлайн редактор)
+python server.py
+# Браузер откроется автоматически, либо зайдите на:
+#   http://localhost:8000
 ```
 
 **Требования:** Python 3.10+, внешние зависимости отсутствуют.

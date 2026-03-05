@@ -660,14 +660,6 @@ document.getElementById("btn-download").addEventListener("click", () => {
 });
 
 // stdin toggle
-const btnStdin = document.getElementById("btn-stdin");
-const stdinPanel = document.getElementById("stdin-panel");
-btnStdin.addEventListener("click", () => {
-  const vis = stdinPanel.style.display !== "none";
-  stdinPanel.style.display = vis ? "none" : "flex";
-  btnStdin.classList.toggle("active", !vis);
-});
-
 // Запустить
 document.getElementById("btn-run").addEventListener("click", runCode);
 

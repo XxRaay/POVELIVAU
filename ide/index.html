@@ -35,9 +35,6 @@
     <button class="btn btn-ghost" id="btn-download" title="Скачать как .pov">
       <span>💾</span><span>Скачать</span>
     </button>
-    <button class="btn btn-ghost" id="btn-stdin" title="Данные для ввода">
-      <span>⌨</span><span>stdin</span>
-    </button>
     <button class="btn btn-run" id="btn-run" title="Запустить (Ctrl+Enter)">
       <span id="run-icon">▶</span><span id="run-label">Запустить</span>
     </button>
@@ -77,24 +74,11 @@
   <!-- ПРАВАЯ КОЛОНКА -->
   <div id="right-col">
 
-    <!-- STDIN (скрыт по умолчанию) -->
-    <section id="stdin-panel" style="display:none">
-      <div class="panel-header">
-        <span class="panel-icon">⌨</span>
-        <span class="panel-title">Стандартный ввод (stdin)</span>
-        <span class="panel-hint">По одному значению на строку</span>
-      </div>
-      <textarea id="stdin-input"
-        placeholder="Введите входные данные&#10;по одному на строку:&#10;&#10;Иван&#10;42&#10;да"
-        spellcheck="false"
-      ></textarea>
-    </section>
-
     <!-- КОНСОЛЬ -->
     <section id="console-panel">
       <div class="panel-header">
         <span class="panel-icon">🖥</span>
-        <span class="panel-title">Консоль вывода</span>
+        <span class="panel-title">Консоль</span>
         <button id="btn-clear" class="btn-clear" style="display:none">Очистить</button>
       </div>
       <div id="console-out">
@@ -103,6 +87,16 @@
           <div class="ph-text">Нажмите <strong>▶ Запустить</strong> для исполнения свитка</div>
           <div class="ph-hint">или Ctrl+Enter</div>
         </div>
+      </div>
+      <div id="stdin-inline">
+        <div class="stdin-header">
+          <span class="stdin-label">Стандартный ввод (stdin)</span>
+          <span class="stdin-hint">по одному значению на строку</span>
+        </div>
+        <textarea id="stdin-input"
+          placeholder="Введите входные данные по одному на строку…&#10;&#10;Иван&#10;42&#10;да"
+          spellcheck="false"
+        ></textarea>
       </div>
     </section>
 
