@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ПОВЕЛЕВАЮ — IDE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;1,400&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap"/>
+  <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- ══ ШАПКА ════════════════════════════════════════════ -->
+<header id="header">
+  <div class="logo">
+    <span class="logo-orn">⚜</span>
+    <span class="logo-text">ПОВЕЛЕВАЮ</span>
+    <span class="logo-sub">IDE</span>
+  </div>
+
+  <div class="filename-wrap">
+    <span id="filename-display" class="filename-display" title="Нажми для переименования">
+      📜 <span id="filename-text">программа.pov</span>
+    </span>
+    <input id="filename-input" class="filename-input" type="text" value="программа.pov" style="display:none"/>
+  </div>
+
+  <nav class="toolbar">
+    <button class="btn btn-ghost" id="btn-templates" title="Выбрать шаблон">
+      <span>📋</span><span>Шаблоны</span>
+    </button>
+    <button class="btn btn-ghost" id="btn-open" title="Открыть .pov файл">
+      <span>📂</span><span>Открыть</span>
+    </button>
+    <button class="btn btn-ghost" id="btn-download" title="Скачать как .pov">
+      <span>💾</span><span>Скачать</span>
+    </button>
+    <button class="btn btn-ghost" id="btn-stdin" title="Данные для ввода">
+      <span>⌨</span><span>stdin</span>
+    </button>
+    <button class="btn btn-run" id="btn-run" title="Запустить (Ctrl+Enter)">
+      <span id="run-icon">▶</span><span id="run-label">Запустить</span>
+    </button>
+  </nav>
+</header>
+
+<!-- ══ ОСНОВНАЯ ОБЛАСТЬ ══════════════════════════════════ -->
+<div id="main">
+
+  <!-- РЕДАКТОР -->
+  <section id="editor-panel">
+    <div class="panel-header">
+      <span class="panel-icon">📝</span>
+      <span class="panel-title">Редактор</span>
+      <span class="panel-hint">Tab&nbsp;=&nbsp;5&nbsp;пробелов&nbsp;·&nbsp;Ctrl+Enter&nbsp;=&nbsp;запустить</span>
+    </div>
+    <div id="editor-wrap">
+      <div id="line-numbers" aria-hidden="true"></div>
+      <div id="editor-inner">
+        <div id="highlight-overlay" aria-hidden="true"></div>
+        <textarea id="code-input"
+          spellcheck="false"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+        ></textarea>
+        <!-- Попап автодополнения -->
+        <div id="ac-popup" style="display:none">
+          <div class="ac-header">Дополнение</div>
+          <div id="ac-list"></div>
+          <div class="ac-footer">↑↓ навигация · Tab/Enter принять · Esc закрыть</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ПРАВАЯ КОЛОНКА -->
+  <div id="right-col">
+
+    <!-- STDIN (скрыт по умолчанию) -->
+    <section id="stdin-panel" style="display:none">
+      <div class="panel-header">
+        <span class="panel-icon">⌨</span>
+        <span class="panel-title">Стандартный ввод (stdin)</span>
+        <span class="panel-hint">По одному значению на строку</span>
+      </div>
+      <textarea id="stdin-input"
+        placeholder="Введите входные данные&#10;по одному на строку:&#10;&#10;Иван&#10;42&#10;да"
+        spellcheck="false"
+      ></textarea>
+    </section>
+
+    <!-- КОНСОЛЬ -->
+    <section id="console-panel">
+      <div class="panel-header">
+        <span class="panel-icon">🖥</span>
+        <span class="panel-title">Консоль вывода</span>
+        <button id="btn-clear" class="btn-clear" style="display:none">Очистить</button>
+      </div>
+      <div id="console-out">
+        <div id="console-placeholder">
+          <div class="ph-icon">⚜</div>
+          <div class="ph-text">Нажмите <strong>▶ Запустить</strong> для исполнения свитка</div>
+          <div class="ph-hint">или Ctrl+Enter</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ══ МОДАЛКА ШАБЛОНОВ ══════════════════════════════════ -->
+<div id="modal-overlay" style="display:none">
+  <div id="modal-box">
+    <div class="modal-title"><span>📜</span> Выбери шаблон</div>
+    <div id="template-grid"></div>
+    <button class="btn btn-ghost" id="modal-close" style="width:100%;justify-content:center;margin-top:6px">
+      Закрыть
+    </button>
+  </div>
+</div>
+
+<!-- Скрытый input для открытия файла -->
+<input type="file" id="file-input" accept=".pov,.txt" style="display:none"/>
+
+<script src="editor.js"></script>
+</body>
+</html>
