@@ -5,6 +5,8 @@ import os
 import io
 import unittest
 from unittest.mock import patch
+from pathlib import Path
+import tempfile
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -364,6 +366,145 @@ class TestHttp(unittest.TestCase):
                 run("""
 Повелеваю: Отныне из земель дальних призвать весть по адресу "https://bad.example" именоваться Ответ,
 """)
+
+
+class TestFilesystem(unittest.TestCase):
+
+    def test_getcwd_and_listdir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                # создаём несколько сущностей
+                os.mkdir("Архив")
+                with open("свиток.txt", "w", encoding="utf-8") as f:
+                    f.write("test")
+
+                out = run("""
+Повелеваю: Узнать имя земли текущей и наречь Путь,
+Повелеваю: Обозреть всё в пределе текущем и наречь Список,
+Глаголю народу: "[Путь]",
+Глаголю народу: "[Список]",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        lines = out.splitlines()
+        self.assertGreaterEqual(len(lines), 2)
+        self.assertEqual(Path(lines[0]), Path(tmpdir))
+        self.assertIn("Архив", lines[1])
+        self.assertIn("свиток.txt", lines[1])
+
+    def test_mkdir_exists_and_rmtree(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                out = run("""
+Суд вершу:
+     Коль в землях есть "Архив":
+          Вещаю: "есть_до",
+     Иначе:
+          Вещаю: "нет_до",
+
+Повелеваю: Возвести чертог новый именем "Архив",
+
+Суд вершу:
+     Коль в землях есть "Архив":
+          Вещаю: "есть_после",
+     Иначе:
+          Вещаю: "нет_после",
+
+Повелеваю: Предать забвению чертог "Архив" со всеми свитками,
+
+Суд вершу:
+     Коль в землях есть "Архив":
+          Вещаю: "есть_после_удаления",
+     Иначе:
+          Вещаю: "нет_после_удаления",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        lines = out.splitlines()
+        self.assertEqual(lines[0], "нет_до")
+        self.assertEqual(lines[1], "есть_после")
+        self.assertEqual(lines[2], "нет_после_удаления")
+        self.assertFalse(os.path.exists(os.path.join(tmpdir, "Архив")))
+
+    def test_remove_and_rename(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # подготавливаем файлы в рабочей директории интерпретатора
+            with open("черновик.txt", "w", encoding="utf-8") as f:
+                f.write("draft")
+            with open("лишний.txt", "w", encoding="utf-8") as f:
+                f.write("extra")
+
+            out = run("""
+Повелеваю: Переименовать грамоту "черновик.txt" в "Указ_Финальный.txt",
+Повелеваю: Изгнать из земель свиток "лишний.txt",
+Глаголю народу: "Совершено",
+""")
+        self.assertEqual(out, "Совершено")
+        self.assertFalse(os.path.exists("черновик.txt"))
+        self.assertTrue(os.path.exists("Указ_Финальный.txt"))
+        self.assertFalse(os.path.exists("лишний.txt"))
+
+    def test_path_exists_expression_in_if(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            target = os.path.join(tmpdir, "сокровище.db")
+
+            # случай без файла
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                out_missing = run("""
+Суд вершу:
+     Коль в землях есть "сокровище.db":
+          Вещаю: "Богатства на месте!",
+     Иначе:
+          Кричу на всю Русь: "Ограбили!",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+            # случай с файлом
+            with open(target, "w", encoding="utf-8") as f:
+                f.write("gold")
+
+            try:
+                os.chdir(tmpdir)
+                out_exists = run("""
+Суд вершу:
+     Коль в землях есть "сокровище.db":
+          Вещаю: "Богатства на месте!",
+     Иначе:
+          Кричу на всю Русь: "Ограбили!",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(out_missing, 'Ограбили!')
+        self.assertEqual(out_exists, 'Богатства на месте!')
+
+    def test_file_write_append(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                out = run("""
+Повелеваю: Вписать в свиток "летопись.txt" строку "Первая",
+Повелеваю: Вписать в свиток "летопись.txt" строку "Вторая",
+Глаголю народу: "Готово",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(out, "Готово")
+        path = os.path.join(tmpdir, "летопись.txt")
+        with open(path, "r", encoding="utf-8") as f:
+            content = f.read()
+        self.assertEqual(content, "ПерваяВторая")
 
 
 if __name__ == '__main__':

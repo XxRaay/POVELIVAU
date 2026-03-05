@@ -1,6 +1,8 @@
 # interpreter.py — Интерпретатор языка ПОВЕЛЕВАЮ (паттерн Visitor)
 import re
 import sys
+import os
+import shutil
 from typing import Any, Dict, List, Optional
 from nodes import *
 from errors import (
@@ -307,6 +309,76 @@ class Interpreter:
                 f"Вестник с вестью не дошёл до земель по адресу '{url}': {exc}"
             )
         return response.text
+
+    # ── Файловая система: Устав Управления Землями ────────────────────
+
+    def visit_ListDirNode(self, node: ListDirNode):
+        try:
+            return os.listdir()
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось обозреть владения: {exc}")
+
+    def visit_CwdNode(self, node: CwdNode) -> str:
+        try:
+            return os.getcwd()
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось узреть имя земли текущей: {exc}")
+
+    def visit_PathExistsNode(self, node: PathExistsNode) -> bool:
+        path = str(self.execute(node.path))
+        return os.path.exists(path)
+
+    def visit_ChdirNode(self, node: ChdirNode):
+        path = str(self.execute(node.path))
+        try:
+            os.chdir(path)
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось сменить землю на '{path}': {exc}")
+
+    def visit_MkdirNode(self, node: MkdirNode):
+        path = str(self.execute(node.path))
+        try:
+            os.mkdir(path)
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось возвести чертог '{path}': {exc}")
+
+    def visit_RmtreeNode(self, node: RmtreeNode):
+        path = str(self.execute(node.path))
+        try:
+            shutil.rmtree(path)
+        except FileNotFoundError:
+            raise PovelRuntimeError(f"Чертог '{path}' не обретается в сих землях!")
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось предать забвению чертог '{path}': {exc}")
+
+    def visit_RemoveNode(self, node: RemoveNode):
+        path = str(self.execute(node.path))
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            raise PovelRuntimeError(f"Свиток '{path}' не найден в землях!")
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось изгнать свиток '{path}': {exc}")
+
+    def visit_RenameNode(self, node: RenameNode):
+        src = str(self.execute(node.src))
+        dst = str(self.execute(node.dst))
+        try:
+            os.rename(src, dst)
+        except FileNotFoundError:
+            raise PovelRuntimeError(f"Грамота '{src}' не найдена для переименования!")
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось переименовать грамоту '{src}' в '{dst}': {exc}")
+
+    def visit_FileWriteNode(self, node: FileWriteNode):
+        path = str(self.execute(node.path))
+        text = str(self.execute(node.text))
+        try:
+            # Дописываем в конец свитка; свиток создаётся, если его не было
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(text)
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось вписать в свиток '{path}': {exc}")
 
     # ── RangeNode (используется только в ForNode) ────────────────────
     def visit_RangeNode(self, node: RangeNode):

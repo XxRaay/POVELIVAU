@@ -184,3 +184,59 @@ class HttpGetNode(Node):
 class HttpPostNode(Node):
     url: 'Node'
     body: 'Node'
+
+
+@dataclass
+class ListDirNode(Node):
+    """Получить список содержимого текущей земли (os.listdir)."""
+    pass
+
+
+@dataclass
+class CwdNode(Node):
+    """Получить путь текущей земли (os.getcwd)."""
+    pass
+
+
+@dataclass
+class PathExistsNode(Node):
+    """Проверить, что путь существует в землях (os.path.exists)."""
+    path: 'Node'
+
+
+@dataclass
+class ChdirNode(Node):
+    """Сменить текущую землю (os.chdir)."""
+    path: 'Node'
+
+
+@dataclass
+class MkdirNode(Node):
+    """Возвести новый чертог (os.mkdir)."""
+    path: 'Node'
+
+
+@dataclass
+class RmtreeNode(Node):
+    """Предать забвению чертог со всеми свитками (shutil.rmtree)."""
+    path: 'Node'
+
+
+@dataclass
+class RemoveNode(Node):
+    """Изгнать свиток из земель (os.remove)."""
+    path: 'Node'
+
+
+@dataclass
+class RenameNode(Node):
+    """Переименовать грамоту (os.rename)."""
+    src: 'Node'
+    dst: 'Node'
+
+
+@dataclass
+class FileWriteNode(Node):
+    """Вписать строку в свиток (файл)."""
+    path: 'Node'
+    text: 'Node'

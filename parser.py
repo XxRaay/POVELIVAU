@@ -173,6 +173,71 @@ class Parser:
             self.expect_type(TT.COMMA)
             return AssignNode(line=line, name=name, value=value)
 
+        # ── Файловая система: листинг — Повелеваю: Обозреть всё в пределе текущем и наречь <Имя>,
+        if self.at_kw('Повелеваю: Обозреть всё в пределе текущем и наречь'):
+            self.advance()
+            name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return AssignNode(line=line, name=name, value=ListDirNode(line=line))
+
+        # ── Файловая система: текущий путь — Повелеваю: Узнать имя земли текущей и наречь <Имя>,
+        if self.at_kw('Повелеваю: Узнать имя земли текущей и наречь'):
+            self.advance()
+            name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return AssignNode(line=line, name=name, value=CwdNode(line=line))
+
+        # ── Файловая система: смена директории — Повелеваю: Сменить землю на <expr> и обосноваться там,
+        if self.at_kw('Повелеваю: Сменить землю на'):
+            self.advance()
+            path_expr = self.parse_expression()
+            self.expect_kw('и обосноваться там')
+            self.expect_type(TT.COMMA)
+            return ChdirNode(line=line, path=path_expr)
+
+        # ── Файловая система: mkdir — Повелеваю: Возвести чертог новый именем <expr>,
+        if self.at_kw('Повелеваю: Возвести чертог новый именем'):
+            self.advance()
+            path_expr = self.parse_expression()
+            self.expect_type(TT.COMMA)
+            return MkdirNode(line=line, path=path_expr)
+
+        # ── Файловая система: rmtree — Повелеваю: Предать забвению чертог <expr> со всеми свитками,
+        if self.at_kw('Повелеваю: Предать забвению чертог'):
+            self.advance()
+            path_expr = self.parse_expression()
+            self.expect_kw('со всеми свитками')
+            self.expect_type(TT.COMMA)
+            return RmtreeNode(line=line, path=path_expr)
+
+        # ── Файловая система: remove — Повелеваю: Изгнать из земель свиток <expr>,
+        if self.at_kw('Повелеваю: Изгнать из земель свиток'):
+            self.advance()
+            path_expr = self.parse_expression()
+            self.expect_type(TT.COMMA)
+            return RemoveNode(line=line, path=path_expr)
+
+        # ── Файловая система: rename — Повелеваю: Переименовать грамоту <expr> в <expr>,
+        if self.at_kw('Повелеваю: Переименовать грамоту'):
+            self.advance()
+            src = self.parse_expression()
+            # Между путями ожидается служебное слово "в"
+            tok_v = self.expect_type(TT.IDENT)
+            if tok_v.value != 'в':
+                raise ParseError(tok_v.line, '', expected='в', got=tok_v.value)
+            dst = self.parse_expression()
+            self.expect_type(TT.COMMA)
+            return RenameNode(line=line, src=src, dst=dst)
+
+        # ── Файловая система: вписать строку в свиток — Повелеваю: Вписать в свиток <expr> строку <expr>,
+        if self.at_kw('Повелеваю: Вписать в свиток'):
+            self.advance()
+            path_expr = self.parse_expression()
+            self.expect_kw('строку')
+            text_expr = self.parse_expression()
+            self.expect_type(TT.COMMA)
+            return FileWriteNode(line=line, path=path_expr, text=text_expr)
+
         # ── Вывод: Глаголю народу / Вещаю / Кричу на всю Русь
         if self.at_kw('Глаголю народу:', 'Вещаю:', 'Кричу на всю Русь:'):
             self.advance()
@@ -500,6 +565,12 @@ class Parser:
         if self.at_kw('ничто'):
             self.advance()
             return NoneNode(line=line)
+
+        # Проверка существования пути: в землях есть <expr>
+        if self.at_kw('в землях есть'):
+            self.advance()
+            path = self.parse_atom()
+            return PathExistsNode(line=line, path=path)
 
         # Случайное число: из палат случайных призвать число от <A> до <B>
         if self.at_kw('из палат случайных призвать число от'):
