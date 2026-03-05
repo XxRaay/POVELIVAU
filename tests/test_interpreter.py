@@ -322,6 +322,19 @@ class TestProgramStructure(unittest.TestCase):
         with self.assertRaises(ParseError):
             parser.parse()
 
+    def test_missing_trailing_comma_in_assign_raises_parse_error(self):
+        # Нет запятой в конце инструкции присваивания
+        with self.assertRaises(ParseError):
+            run('Повелеваю: Отныне 42 именоваться Число')
+
+    def test_missing_indent_in_while_raises_parse_error(self):
+        # Нет отступа у тела цикла
+        with self.assertRaises(ParseError):
+            run("""
+Коловрат покуда 1 меньше 2:
+Повелеваю: Пресечь бег сего коловрата,
+""")
+
 
 if __name__ == '__main__':
     print("═" * 50)

@@ -128,8 +128,8 @@ class Parser:
     def parse_indented_block(self) -> List[Node]:
         """Парсит вложенный блок после INDENT"""
         self.skip_newlines()
-        if self.at_type(TT.INDENT):
-            self.advance()
+        # Блок обязан начинаться с INDENT
+        self.expect_type(TT.INDENT)
         stmts = []
         while True:
             self.skip_newlines()
@@ -160,44 +160,44 @@ class Parser:
             value = self.parse_expression()
             self.expect_kw('именоваться')
             name = self.expect_type(TT.IDENT).value
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return AssignNode(line=line, name=name, value=value)
 
         # ── Присвоение: Указываю: Сотворить сундук пустой, именем <Имя>, и положить в него <expr>
         if self.at_kw('Указываю: Сотворить сундук пустой, именем'):
             self.advance()
             name = self.expect_type(TT.IDENT).value
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             self.expect_kw('и положить в него')
             value = self.parse_expression()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return AssignNode(line=line, name=name, value=value)
 
         # ── Вывод: Глаголю народу / Вещаю / Кричу на всю Русь
         if self.at_kw('Глаголю народу:', 'Вещаю:', 'Кричу на всю Русь:'):
             self.advance()
             value = self.parse_expression()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return PrintNode(line=line, value=value)
 
         # ── Ввод с кастом: Взять слово ... в Число Цельное ... и наречь <Имя>
         if self.at_kw('Повелеваю: Взять слово от гостя заезжего, оборотить его в Число Цельное и наречь'):
             self.advance()
             name = self.expect_type(TT.IDENT).value
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return InputNode(line=line, name=name, cast='int')
 
         if self.at_kw('Повелеваю: Взять слово от гостя заезжего, оборотить его в Число Дробное и наречь'):
             self.advance()
             name = self.expect_type(TT.IDENT).value
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return InputNode(line=line, name=name, cast='float')
 
         # ── Ввод простой: Взять слово от гостя заезжего и наречь <Имя>
         if self.at_kw('Повелеваю: Взять слово от гостя заезжего и наречь'):
             self.advance()
             name = self.expect_type(TT.IDENT).value
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return InputNode(line=line, name=name)
 
         # ── Ввод с подсказкой: Вопрошаю гостя: "<подсказка>" и наречь <Имя>
@@ -206,32 +206,32 @@ class Parser:
             prompt = self.parse_expression()
             self.expect_kw('и наречь')
             name = self.expect_type(TT.IDENT).value
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return InputNode(line=line, name=name, prompt=prompt)
 
         # ── Break
         if self.at_kw('Повелеваю: Пресечь бег сего коловрата'):
             self.advance()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return BreakNode(line=line)
 
         # ── Continue
         if self.at_kw('Повелеваю: Перейти к следующему витку'):
             self.advance()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return ContinueNode(line=line)
 
         # ── Return
         if self.at_kw('Повелеваю: Вернуть'):
             self.advance()
             value = self.parse_expression()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return ReturnNode(line=line, value=value)
 
         # ── Exit
         if self.at_kw('Повелеваю: Остановить всё и почить'):
             self.advance()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return ExitNode(line=line)
 
         # ── Условие: Суд вершу:
@@ -266,7 +266,7 @@ class Parser:
             self.advance()
             name = self.expect_type(TT.IDENT).value
             args = self.parse_call_args()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return FuncCallNode(line=line, name=name, args=args)
 
         # ── Список: Дружина именем <Имя> с ратниками [...]
@@ -275,7 +275,7 @@ class Parser:
             name = self.expect_type(TT.IDENT).value
             self.expect_kw('с ратниками')
             elems = self.parse_list_literal()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return AssignNode(line=line, name=name, value=elems)
 
         # ── Append: Принять в дружину <Имя> ратника <expr>
@@ -284,7 +284,7 @@ class Parser:
             name = self.expect_type(TT.IDENT).value
             self.expect_kw('ратника')
             value = self.parse_expression()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return ListAppendNode(line=line, name=name, value=value)
 
         # ── Pop: Изгнать из дружины <Имя> ратника с позиции <expr>
@@ -293,7 +293,7 @@ class Parser:
             name = self.expect_type(TT.IDENT).value
             self.expect_kw('ратника с позиции')
             idx = self.parse_expression()
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return ListPopNode(line=line, name=name, index=idx)
 
         # ── Добавить в сундук <Имя> единицу малую  (+=1)
@@ -301,14 +301,14 @@ class Parser:
             self.advance()
             name = self.expect_type(TT.IDENT).value
             if self.match_kw('единицу малую'):
-                self.match_type(TT.COMMA)
+                self.expect_type(TT.COMMA)
                 return AugAssignNode(line=line, name=name, op='+=', value=NumberNode(line=line, value=1))
             elif self.match_kw('единицу'):
-                self.match_type(TT.COMMA)
+                self.expect_type(TT.COMMA)
                 return AugAssignNode(line=line, name=name, op='+=', value=NumberNode(line=line, value=1))
             else:
                 value = self.parse_expression()
-                self.match_type(TT.COMMA)
+                self.expect_type(TT.COMMA)
                 return AugAssignNode(line=line, name=name, op='+=', value=value)
 
         # ── Убавить из сундука <Имя> единицу
@@ -316,7 +316,7 @@ class Parser:
             self.advance()
             name = self.expect_type(TT.IDENT).value
             self.match_kw('единицу малую', 'единицу')
-            self.match_type(TT.COMMA)
+            self.expect_type(TT.COMMA)
             return AugAssignNode(line=line, name=name, op='-=', value=NumberNode(line=line, value=1))
 
         raise ParseError(line, f"Неведомое начало инструкции: '{tok.value}'")
@@ -327,9 +327,8 @@ class Parser:
         self.skip_newlines()
         branches = []
 
-        # Ожидаем INDENT
-        if self.at_type(TT.INDENT):
-            self.advance()
+        # Ожидаем обязательный INDENT после "Суд вершу:"
+        self.expect_type(TT.INDENT)
 
         while True:
             self.skip_newlines()
@@ -353,6 +352,7 @@ class Parser:
             else:
                 break
 
+        # Закрываем блок условия
         if self.at_type(TT.DEDENT):
             self.advance()
 

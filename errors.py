@@ -17,10 +17,13 @@ class LexerError(PovelError):
 
 class ParseError(PovelError):
     def __init__(self, line: int, message: str, expected: str = None, got: str = None):
-        if expected and got:
-            detail = f"ожидалось '{expected}', а явилось '{got}'"
+        # Если передали expected/got — формируем человекочитаемое описание.
+        if expected is not None and got is not None:
+            shown_got = got if got else "иное"
+            detail = f"ожидалось '{expected}', а явилось '{shown_got}'"
         else:
-            detail = message
+            # Если message пустой — даём общее описание, чтобы не было "пустой" ошибки
+            detail = message or "свиток составлен неверно (синтаксическая ошибка)"
         msg = (
             f"⚔ Свиток составлен неверно!\n"
             f"  Строка {line}: {detail}"
