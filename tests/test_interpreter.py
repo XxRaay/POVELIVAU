@@ -11,14 +11,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from lexer import Lexer
 from parser import Parser
 from interpreter import Interpreter
-from errors import PovelError, UndefinedVariableError, DivisionByZeroError
+from errors import PovelError, UndefinedVariableError, DivisionByZeroError, ParseError
 
 
 def run(source: str, inputs=None) -> str:
-    """Запускает программу и возвращает вывод."""
-    if not source.strip().startswith('Свиток'):
-        source = 'Свиток Теста "Тест"\n' + source
-    lexer = Lexer(source)
+    """Запускает программу и возвращает вывод.
+
+    В тестах передаётся только тело программы; заголовок свитка и
+    команда запуска добавляются автоматически.
+    """
+    body = source.strip()
+    full_source = 'Свиток Теста "Тест"\n' + body + '\n\nПовелеваю: Начать выполнение!'
+
+    lexer = Lexer(full_source)
     tokens = lexer.tokenize()
     parser = Parser(tokens)
     ast = parser.parse()
@@ -283,6 +288,39 @@ class TestBooleans(unittest.TestCase):
           Вещаю: "хоть один верен",
 """)
         self.assertEqual(out, "хоть один верен")
+
+
+class TestProgramStructure(unittest.TestCase):
+
+    def test_missing_header_raises_parse_error(self):
+        # Нет строки "Свиток ..."
+        source = '''
+Глаголю народу: "Без заголовка!",
+
+Повелеваю: Начать выполнение!
+'''.strip()
+
+        lexer = Lexer(source)
+        tokens = lexer.tokenize()
+        parser = Parser(tokens)
+
+        with self.assertRaises(ParseError):
+            parser.parse()
+
+    def test_missing_start_command_raises_parse_error(self):
+        # Нет "Повелеваю: Начать выполнение!" в конце
+        source = '''
+Свиток Теста "Тест"
+
+Глаголю народу: "Без команды запуска!",
+'''.strip()
+
+        lexer = Lexer(source)
+        tokens = lexer.tokenize()
+        parser = Parser(tokens)
+
+        with self.assertRaises(ParseError):
+            parser.parse()
 
 
 if __name__ == '__main__':

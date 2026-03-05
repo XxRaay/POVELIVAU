@@ -80,21 +80,30 @@ class Parser:
         self.skip_newlines()
         line = self.current().line
 
-        # Свиток <Тип> "<Название>"
+        # Свиток <Тип> "<Название>" — обязателен
         scroll_type = 'Свитка'
         title = 'Без названия'
-        if self.at_kw('Свиток'):
-            self.advance()
-            if self.at_type(TT.IDENT):
-                scroll_type = self.advance().value
-            if self.at_type(TT.STRING):
-                title = self.advance().value
-            self.skip_newlines()
+        if not self.at_kw('Свиток'):
+            tok = self.current()
+            raise ParseError(tok.line, "Ожидался заголовок 'Свиток <Тип> \"<Название>\"' в начале свитка")
+
+        # Ключевое слово "Свиток"
+        self.advance()
+
+        # Не требуем тип и название строго, но если они есть — разбираем
+        if self.at_type(TT.IDENT):
+            scroll_type = self.advance().value
+        if self.at_type(TT.STRING):
+            title = self.advance().value
+
+        self.skip_newlines()
 
         body = self.parse_block_or_top()
 
-        # Ожидаем "Повелеваю: Начать выполнение!" (необязательно)
-        self.match_kw('Повелеваю: Начать выполнение!')
+        # Обязательная команда запуска программы в конце
+        if not self.match_kw('Повелеваю: Начать выполнение!'):
+            tok = self.current()
+            raise ParseError(tok.line, "Ожидалось 'Повелеваю: Начать выполнение!' в конце свитка")
 
         return ProgramNode(line=line, title=title, scroll_type=scroll_type, body=body)
 
