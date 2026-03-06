@@ -497,14 +497,14 @@ class TestFilesystem(unittest.TestCase):
 Повелеваю: Вписать в свиток "летопись.txt" строку "Вторая",
 Глаголю народу: "Готово",
 """)
+
+                self.assertEqual(out, "Готово")
+                path = os.path.join(tmpdir, "летопись.txt")
+                with open(path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.assertEqual(content, "ПерваяВторая")
             finally:
                 os.chdir(old_cwd)
-
-        self.assertEqual(out, "Готово")
-        path = os.path.join(tmpdir, "летопись.txt")
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-        self.assertEqual(content, "ПерваяВторая")
 
 
 class TestLibraries(unittest.TestCase):
@@ -512,6 +512,7 @@ class TestLibraries(unittest.TestCase):
     def test_import_library_succeeds(self):
         out = run("""
 Повелеваю: достать из библиотеки великой "http request",
+Повелеваю: достать из библиотеки великой "земли",
 Глаголю народу: "Готово",
 """)
         self.assertEqual(out, "Готово")
