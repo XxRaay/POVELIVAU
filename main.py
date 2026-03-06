@@ -24,7 +24,7 @@ BANNER = """
 """
 
 
-def run_source(source: str, debug: bool = False) -> bool:
+def run_source(source: str, debug: bool = False, current_file: str | None = None) -> bool:
     """Запускает исходный код. Возвращает True при успехе."""
     try:
         lexer = Lexer(source)
@@ -44,7 +44,7 @@ def run_source(source: str, debug: bool = False) -> bool:
             _print_ast(ast, indent=2)
             print()
 
-        interp = Interpreter(debug=debug)
+        interp = Interpreter(debug=debug, current_file=current_file)
         interp.execute(ast)
         return True
 
@@ -177,7 +177,7 @@ def main():
     with open(filepath, 'r', encoding='utf-8') as f:
         source = f.read()
 
-    success = run_source(source, debug=debug)
+    success = run_source(source, debug=debug, current_file=filepath)
     sys.exit(0 if success else 1)
 
 

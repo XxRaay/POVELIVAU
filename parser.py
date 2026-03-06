@@ -173,6 +173,20 @@ class Parser:
             self.expect_type(TT.COMMA)
             return AssignNode(line=line, name=name, value=value)
 
+        # ── Импорт библиотеки: Повелеваю: достать из библиотеки великой "<имя>",
+        if self.at_kw('Повелеваю: достать из библиотеки великой'):
+            self.advance()
+            name = self.expect_type(TT.STRING).value
+            self.expect_type(TT.COMMA)
+            return ImportLibraryNode(line=line, name=name)
+
+        # ── Импорт свитка по шапке: Повелеваю: достать из библиотеки великой свиток "<название>",
+        if self.at_kw('Повелеваю: достать из библиотеки великой свиток'):
+            self.advance()
+            title = self.expect_type(TT.STRING).value
+            self.expect_type(TT.COMMA)
+            return ImportScrollNode(line=line, title=title)
+
         # ── Файловая система: листинг — Повелеваю: Обозреть всё в пределе текущем и наречь <Имя>,
         if self.at_kw('Повелеваю: Обозреть всё в пределе текущем и наречь'):
             self.advance()
