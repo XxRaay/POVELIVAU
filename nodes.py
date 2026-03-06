@@ -265,3 +265,81 @@ class FileDeleteLineNode(Node):
 class FileCreateNode(Node):
     """Сотворить новый пустой свиток (файл)."""
     path: 'Node'
+
+
+# ── Tkinter (окно и виджеты) ─────────────────────────────────────────
+
+@dataclass
+class TkCreateWindowNode(Node):
+    """Явить окно и наречь Имя — создать главное окно Tk()."""
+    name: str
+
+
+@dataclass
+class TkMainloopNode(Node):
+    """Повелеваю: Внять глас народа — запуск mainloop()."""
+    pass
+
+
+@dataclass
+class TkLabelNode(Node):
+    """Явить надпись на родителе с текстом и наречь Имя."""
+    parent: str
+    text: 'Node'
+    name: str
+
+
+@dataclass
+class TkButtonNode(Node):
+    """Явить кнопку на родителе с надписью и наречь Имя (command опционально)."""
+    parent: str
+    text: 'Node'
+    name: str
+    command_name: Optional[str] = None  # имя умения при нажатии
+
+
+@dataclass
+class TkEntryNode(Node):
+    """Явить поле ввода на родителе и наречь Имя."""
+    parent: str
+    name: str
+
+
+@dataclass
+class TkEntryGetNode(Node):
+    """значение поля <Имя> — прочитать содержимое Entry.get()."""
+    name: str
+
+
+@dataclass
+class TkFrameNode(Node):
+    """Явить чертог (Frame) на родителе и наречь Имя."""
+    parent: str
+    name: str
+
+
+@dataclass
+class TkTitleNode(Node):
+    """Повелеваю: Наречь окно Имя титулом <expr>."""
+    window_name: str
+    title: 'Node'
+
+
+@dataclass
+class TkGeometryNode(Node):
+    """Повелеваю: Установить окну Имя пределы <expr> (строка вида 400x300+100+50)."""
+    window_name: str
+    geometry: 'Node'
+
+
+@dataclass
+class TkPlaceNode(Node):
+    """Повелеваю: Разместить виджет Имя (pack по умолчанию)."""
+    name: str
+    kind: str = 'pack'  # 'pack' или 'grid'
+
+
+@dataclass
+class TkDestroyNode(Node):
+    """Повелеваю: Сокрыть виджет Имя."""
+    name: str

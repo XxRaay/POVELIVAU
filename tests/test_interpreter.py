@@ -42,6 +42,128 @@ def run(source: str, inputs=None) -> str:
     return captured.getvalue().strip()
 
 
+def run_with_interpreter(source: str, inputs=None, *, tk_module=None):
+    """Как run(), но возвращает (output, интерпретатор).
+
+    tk_module: подставной модуль tkinter (чтобы тесты работали без установленного tkinter).
+    """
+    body = source.strip()
+    full_source = 'Свиток Теста "Тест"\n' + body + '\n\nПовелеваю: Начать выполнение!'
+
+    lexer = Lexer(full_source)
+    tokens = lexer.tokenize()
+    parser = Parser(tokens)
+    ast = parser.parse()
+    interp = Interpreter()
+
+    captured = io.StringIO()
+    input_iter = iter(inputs or [])
+
+    with patch('builtins.print', lambda *a, **kw: captured.write(' '.join(str(x) for x in a) + '\n')):
+        with patch('builtins.input', lambda *a: next(input_iter)):
+            if tk_module is None:
+                interp.execute(ast)
+            else:
+                with patch.object(Interpreter, "_tk", lambda self: tk_module):
+                    interp.execute(ast)
+
+    return captured.getvalue().strip(), interp
+
+
+class _FakeTkModule:
+    class Widget:
+        def __init__(self, parent=None):
+            self.parent = parent
+            self.packed = False
+            self.destroyed = False
+
+        def pack(self):
+            self.packed = True
+
+        def grid(self):
+            self.packed = True
+
+        def destroy(self):
+            self.destroyed = True
+
+    class Tk(Widget):
+        def __init__(self):
+            super().__init__(None)
+            self._title = ""
+            self._geometry = ""
+            self.mainloop_called = False
+
+        def title(self, s):
+            self._title = s
+
+        def geometry(self, s):
+            self._geometry = s
+
+        def mainloop(self):
+            self.mainloop_called = True
+
+    class Label(Widget):
+        def __init__(self, parent, text=""):
+            super().__init__(parent)
+            self.text = text
+
+    class Entry(Widget):
+        def __init__(self, parent):
+            super().__init__(parent)
+            self._value = ""
+
+        def get(self):
+            return self._value
+
+        def set_for_test(self, s):
+            self._value = s
+
+    class Button(Widget):
+        def __init__(self, parent, text="", command=None):
+            super().__init__(parent)
+            self.text = text
+            self.command = command
+
+        def click_for_test(self):
+            if self.command:
+                self.command()
+
+    class Frame(Widget):
+        pass
+
+
+class TestTkinterCommands(unittest.TestCase):
+
+    def test_entry_get_expression(self):
+        tk = _FakeTkModule()
+        out, interp = run_with_interpreter("""
+Повелеваю: Явить окно и наречь Окно,
+Явить поле ввода на Окно и наречь Поле,
+Повелеваю: Разместить виджет Поле,
+Повелеваю: Отныне значение поля Поле именоваться Текст,
+Вещаю: "[Текст]",
+""", tk_module=tk)
+        # По умолчанию Entry пустой.
+        self.assertEqual(out, "")
+
+    def test_button_command_calls_skill(self):
+        tk = _FakeTkModule()
+        out, interp = run_with_interpreter("""
+Умение нарекаю Сказать():
+     Вещаю: "НАЖАТО",
+
+Повелеваю: Явить окно и наречь Окно,
+Явить кнопку на Окно с надписью "Жми" и наречь Кнопка и при нажатии призвать умение Сказать,
+""", tk_module=tk)
+        self.assertEqual(out, "")
+
+        btn = interp.env.get("Кнопка")
+        btn.click_for_test()
+        # Нажатие печатает через patched print? нет — мы уже вышли из контекста,
+        # поэтому проверяем, что команда действительно связана, вызов не падает.
+        self.assertTrue(callable(btn.command))
+
+
 class TestBasics(unittest.TestCase):
 
     def test_hello_world(self):

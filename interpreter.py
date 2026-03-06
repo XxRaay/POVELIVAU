@@ -58,6 +58,7 @@ class Interpreter:
     def __init__(self, debug: bool = False):
         self.env = Environment()
         self.debug = debug
+        self._tk_root: Any = None  # последнее созданное окно для mainloop (tk.Tk)
 
     # ── Главный метод ───────────────────────────────────────────────
     def execute(self, node: Node) -> Any:
@@ -445,6 +446,127 @@ class Interpreter:
                 f.write(''.join(lines))
         except OSError as exc:
             raise PovelRuntimeError(f"Не удалось переписать свиток '{path}': {exc}")
+
+    # ── Tkinter: окно и виджеты ─────────────────────────────────────
+
+    def _tk(self):
+        """Ленивый импорт tkinter (чтобы тесты без GUI не требовали tk)."""
+        try:
+            import tkinter as tk
+            return tk
+        except ModuleNotFoundError as exc:
+            raise PovelRuntimeError(
+                "В сей земле не обретается Tkinter (tkinter). "
+                "Установи поддержку tkinter для Python, дабы являть окна."
+            ) from exc
+
+    def _tk_parent(self, name: str):
+        """Получить родителя-виджет по имени переменной."""
+        tk = self._tk()
+        obj = self.env.get(name)
+        if not isinstance(obj, (tk.Tk, tk.Widget)):
+            raise PovelRuntimeError(
+                f"'{name}' — не окно и не виджет; надпись и кнопку надлежит явить на окне или чертоге."
+            )
+        return obj
+
+    def visit_TkCreateWindowNode(self, node: TkCreateWindowNode):
+        tk = self._tk()
+        root = tk.Tk()
+        self._tk_root = root
+        return root
+
+    def visit_TkMainloopNode(self, node: TkMainloopNode):
+        if self._tk_root is None:
+            raise PovelRuntimeError(
+                "Сначала надлежит явить окно, дабы внять глас народа."
+            )
+        self._tk_root.mainloop()
+
+    def visit_TkLabelNode(self, node: TkLabelNode):
+        tk = self._tk()
+        parent = self._tk_parent(node.parent)
+        text = str(self.execute(node.text))
+        return tk.Label(parent, text=text)
+
+    def visit_TkButtonNode(self, node: TkButtonNode):
+        tk = self._tk()
+        parent = self._tk_parent(node.parent)
+        text = str(self.execute(node.text))
+        if node.command_name:
+            func = self.env.get(node.command_name)
+            if not isinstance(func, Function):
+                raise PovelRuntimeError(
+                    f"'{node.command_name}' — не умение; кнопке надлежит призывать умение."
+                )
+            if func.params:
+                raise PovelRuntimeError(
+                    f"Умение '{node.command_name}' принимает {len(func.params)} аргументов; "
+                    "кнопка же призывает умение без аргументов."
+                )
+            def cmd():
+                self.env.push()
+                try:
+                    self.exec_block(func.body)
+                except ReturnSignal as r:
+                    pass
+                finally:
+                    self.env.pop()
+            return tk.Button(parent, text=text, command=cmd)
+        return tk.Button(parent, text=text)
+
+    def visit_TkEntryNode(self, node: TkEntryNode):
+        tk = self._tk()
+        parent = self._tk_parent(node.parent)
+        return tk.Entry(parent)
+
+    def visit_TkEntryGetNode(self, node: TkEntryGetNode):
+        tk = self._tk()
+        widget = self.env.get(node.name)
+        if isinstance(widget, tk.Entry):
+            return widget.get()
+        # в тестах/моках может не быть точного класса Entry — даём мягкую проверку
+        if hasattr(widget, "get") and callable(widget.get):
+            return widget.get()
+        raise PovelRuntimeError(
+            f"'{node.name}' — не поле ввода; значение поля можно взять лишь у поля ввода."
+        )
+
+    def visit_TkFrameNode(self, node: TkFrameNode):
+        tk = self._tk()
+        parent = self._tk_parent(node.parent)
+        return tk.Frame(parent)
+
+    def visit_TkTitleNode(self, node: TkTitleNode):
+        window = self._tk_parent(node.window_name)
+        title = str(self.execute(node.title))
+        window.title(title)
+
+    def visit_TkGeometryNode(self, node: TkGeometryNode):
+        window = self._tk_parent(node.window_name)
+        geometry = str(self.execute(node.geometry))
+        window.geometry(geometry)
+
+    def visit_TkPlaceNode(self, node: TkPlaceNode):
+        tk = self._tk()
+        widget = self.env.get(node.name)
+        if not isinstance(widget, (tk.Tk, tk.Widget)):
+            raise PovelRuntimeError(
+                f"'{node.name}' — не виджет; размещать надлежит лишь виджеты."
+            )
+        if node.kind == 'pack':
+            widget.pack()
+        else:
+            widget.grid()
+
+    def visit_TkDestroyNode(self, node: TkDestroyNode):
+        tk = self._tk()
+        widget = self.env.get(node.name)
+        if not isinstance(widget, (tk.Tk, tk.Widget)):
+            raise PovelRuntimeError(
+                f"'{node.name}' — не виджет; сокрыть можно лишь виджет."
+            )
+        widget.destroy()
 
     # ── RangeNode (используется только в ForNode) ────────────────────
     def visit_RangeNode(self, node: RangeNode):

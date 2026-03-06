@@ -317,6 +317,89 @@ class Parser:
             self.expect_type(TT.COMMA)
             return ExitNode(line=line)
 
+        # ── Tkinter: окно и виджеты
+        if self.at_kw('Повелеваю: Явить окно и наречь'):
+            self.advance()
+            name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return AssignNode(line=line, name=name, value=TkCreateWindowNode(line=line, name=name))
+
+        if self.at_kw('Повелеваю: Установить окну'):
+            self.advance()
+            window_name = self.expect_type(TT.IDENT).value
+            self.expect_kw('пределы')
+            geometry = self.parse_expression()
+            self.expect_type(TT.COMMA)
+            return TkGeometryNode(line=line, window_name=window_name, geometry=geometry)
+
+        if self.at_kw('Повелеваю: Сокрыть виджет'):
+            self.advance()
+            name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return TkDestroyNode(line=line, name=name)
+
+        if self.at_kw('Повелеваю: Разместить виджет'):
+            self.advance()
+            name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return TkPlaceNode(line=line, name=name, kind='pack')
+
+        if self.at_kw('Повелеваю: Наречь окно'):
+            self.advance()
+            window_name = self.expect_type(TT.IDENT).value
+            self.expect_kw('титулом')
+            title = self.parse_expression()
+            self.expect_type(TT.COMMA)
+            return TkTitleNode(line=line, window_name=window_name, title=title)
+
+        if self.at_kw('Повелеваю: Внять глас народа'):
+            self.advance()
+            self.expect_type(TT.COMMA)
+            return TkMainloopNode(line=line)
+
+        if self.at_kw('Явить поле ввода на'):
+            self.advance()
+            parent = self.expect_type(TT.IDENT).value
+            self.expect_kw('и наречь')
+            name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return AssignNode(line=line, name=name, value=TkEntryNode(line=line, parent=parent, name=name))
+
+        if self.at_kw('Явить надпись на'):
+            self.advance()
+            parent = self.expect_type(TT.IDENT).value
+            self.expect_kw('с текстом')
+            text = self.parse_expression()
+            self.expect_kw('и наречь')
+            name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return AssignNode(line=line, name=name, value=TkLabelNode(line=line, parent=parent, text=text, name=name))
+
+        if self.at_kw('Явить кнопку на'):
+            self.advance()
+            parent = self.expect_type(TT.IDENT).value
+            self.expect_kw('с надписью')
+            text = self.parse_expression()
+            self.expect_kw('и наречь')
+            name = self.expect_type(TT.IDENT).value
+            command_name = None
+            if self.match_kw('и при нажатии призвать умение'):
+                command_name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return AssignNode(
+                line=line,
+                name=name,
+                value=TkButtonNode(line=line, parent=parent, text=text, name=name, command_name=command_name),
+            )
+
+        if self.at_kw('Явить чертог на'):
+            self.advance()
+            parent = self.expect_type(TT.IDENT).value
+            self.expect_kw('и наречь')
+            name = self.expect_type(TT.IDENT).value
+            self.expect_type(TT.COMMA)
+            return AssignNode(line=line, name=name, value=TkFrameNode(line=line, parent=parent, name=name))
+
         # ── Условие: Суд вершу:
         if self.at_kw('Суд вершу:'):
             return self.parse_if(line)
@@ -600,6 +683,12 @@ class Parser:
             self.advance()
             path = self.parse_atom()
             return FileReadLinesNode(line=line, path=path)
+
+        # Tkinter: значение поля <Имя> (Entry.get())
+        if self.at_kw('значение поля'):
+            self.advance()
+            name = self.expect_type(TT.IDENT).value
+            return TkEntryGetNode(line=line, name=name)
 
         # Случайное число: из палат случайных призвать число от <A> до <B>
         if self.at_kw('из палат случайных призвать число от'):
