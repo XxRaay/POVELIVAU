@@ -100,6 +100,9 @@ class Interpreter:
         value = self.execute(node.value)
         # Ожидаем дружину (список); если нет — ведём себя как обычный print
         if isinstance(value, list):
+            # [Числа] даёт [[1,2,3...]] — разворачиваем одномерную обёртку
+            if len(value) == 1 and isinstance(value[0], list):
+                value = value[0]
             for item in value:
                 print(item)
         else:
