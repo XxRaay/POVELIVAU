@@ -1,6 +1,6 @@
 import requests
 from errors import PovelRuntimeError
-from pov_modules import register_module
+from pov_modules import register_module, register_node_handler
 
 
 def http_get(url: str) -> str:
@@ -27,3 +27,18 @@ register_module('http request', {
     'http_get': http_get,
     'http_post': http_post,
 })
+
+
+def _handle_http_get(interpreter, node):
+    url = interpreter.execute(node.url)
+    return http_get(url)
+
+
+def _handle_http_post(interpreter, node):
+    url = interpreter.execute(node.url)
+    body = interpreter.execute(node.body)
+    return http_post(url, body)
+
+
+register_node_handler('HttpGetNode', _handle_http_get)
+register_node_handler('HttpPostNode', _handle_http_post)

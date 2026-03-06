@@ -2,7 +2,7 @@ import os
 import shutil
 
 from errors import PovelRuntimeError
-from pov_modules import register_module
+from pov_modules import register_module, register_node_handler
 
 
 def list_dir():
@@ -83,3 +83,59 @@ register_module('земли', {
     'rename_file': rename_file,
     'append_text': append_text,
 })
+
+
+def _handle_list_dir(_interpreter, _node):
+    return list_dir()
+
+
+def _handle_cwd(_interpreter, _node):
+    return get_cwd()
+
+
+def _handle_path_exists(interpreter, node):
+    path = str(interpreter.execute(node.path))
+    return path_exists(path)
+
+
+def _handle_chdir(interpreter, node):
+    path = str(interpreter.execute(node.path))
+    change_dir(path)
+
+
+def _handle_mkdir(interpreter, node):
+    path = str(interpreter.execute(node.path))
+    make_dir(path)
+
+
+def _handle_rmtree(interpreter, node):
+    path = str(interpreter.execute(node.path))
+    remove_tree(path)
+
+
+def _handle_remove(interpreter, node):
+    path = str(interpreter.execute(node.path))
+    remove_file(path)
+
+
+def _handle_rename(interpreter, node):
+    src = str(interpreter.execute(node.src))
+    dst = str(interpreter.execute(node.dst))
+    rename_file(src, dst)
+
+
+def _handle_file_write(interpreter, node):
+    path = str(interpreter.execute(node.path))
+    text = str(interpreter.execute(node.text))
+    append_text(path, text)
+
+
+register_node_handler('ListDirNode', _handle_list_dir)
+register_node_handler('CwdNode', _handle_cwd)
+register_node_handler('PathExistsNode', _handle_path_exists)
+register_node_handler('ChdirNode', _handle_chdir)
+register_node_handler('MkdirNode', _handle_mkdir)
+register_node_handler('RmtreeNode', _handle_rmtree)
+register_node_handler('RemoveNode', _handle_remove)
+register_node_handler('RenameNode', _handle_rename)
+register_node_handler('FileWriteNode', _handle_file_write)

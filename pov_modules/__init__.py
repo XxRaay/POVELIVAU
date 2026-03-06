@@ -5,6 +5,7 @@ import importlib
 from typing import Callable, Dict
 
 REGISTRY: Dict[str, Dict[str, Callable]] = {}
+NODE_HANDLERS: Dict[str, Callable] = {}
 
 # Явные соответствия имени «великой библиотеки» и Python-модуля.
 MODULE_NAME_MAP = {
@@ -15,6 +16,14 @@ MODULE_NAME_MAP = {
 
 def register_module(name: str, exports: Dict[str, Callable]):
     REGISTRY[name.lower()] = exports
+
+
+def register_node_handler(node_type_name: str, handler: Callable):
+    NODE_HANDLERS[node_type_name] = handler
+
+
+def get_node_handler(node_type_name: str):
+    return NODE_HANDLERS.get(node_type_name)
 
 
 def _import_module_for_library(name: str):

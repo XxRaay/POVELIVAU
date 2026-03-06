@@ -11,7 +11,7 @@ from errors import (
 import stdlib
 from lexer import Lexer
 from parser import Parser
-from pov_modules import get_exports
+from pov_modules import get_exports, get_node_handler
 
 
 class Environment:
@@ -56,6 +56,20 @@ class Function:
 
 
 class Interpreter:
+    NODE_MODULES = {
+        'HttpGetNode': 'http request',
+        'HttpPostNode': 'http request',
+        'ListDirNode': 'земли',
+        'CwdNode': 'земли',
+        'PathExistsNode': 'земли',
+        'ChdirNode': 'земли',
+        'MkdirNode': 'земли',
+        'RmtreeNode': 'земли',
+        'RemoveNode': 'земли',
+        'RenameNode': 'земли',
+        'FileWriteNode': 'земли',
+    }
+
     def __init__(self, debug: bool = False, current_file: Optional[str] = None):
         self.env = Environment()
         self.debug = debug
@@ -89,7 +103,20 @@ class Interpreter:
     # ── Главный метод ───────────────────────────────────────────────
     def execute(self, node: Node) -> Any:
         method = f'visit_{type(node).__name__}'
-        visitor = getattr(self, method, self.generic_visit)
+        visitor = getattr(self, method, None)
+        if visitor is not None:
+            return visitor(node)
+
+        node_type_name = type(node).__name__
+        required_module = self.NODE_MODULES.get(node_type_name)
+        if required_module and required_module not in self.loaded_modules:
+            self._load_module(required_module)
+
+        handler = get_node_handler(node_type_name)
+        if handler is not None:
+            return handler(self, node)
+
+        visitor = self.generic_visit
         return visitor(node)
 
     def generic_visit(self, node: Node):
@@ -356,68 +383,6 @@ class Interpreter:
     def visit_ExitNode(self, node: ExitNode):
         print("— Всё. Почиваю. —")
         sys.exit(0)
-
-    def visit_HttpGetNode(self, node: HttpGetNode) -> str:
-        url = self.execute(node.url)
-        if 'http request' not in self.loaded_modules:
-            self._load_module('http request')
-        http_get = self._module_export('http request', 'http_get')
-        return http_get(url)
-
-    def visit_HttpPostNode(self, node: HttpPostNode) -> str:
-        url = self.execute(node.url)
-        body = self.execute(node.body)
-        if 'http request' not in self.loaded_modules:
-            self._load_module('http request')
-        http_post = self._module_export('http request', 'http_post')
-        return http_post(url, body)
-
-    # ── Файловая система: Устав Управления Землями ────────────────────
-
-    def visit_ListDirNode(self, node: ListDirNode):
-        list_dir = self._module_export('земли', 'list_dir')
-        return list_dir()
-
-    def visit_CwdNode(self, node: CwdNode) -> str:
-        get_cwd = self._module_export('земли', 'get_cwd')
-        return get_cwd()
-
-    def visit_PathExistsNode(self, node: PathExistsNode) -> bool:
-        path = str(self.execute(node.path))
-        path_exists = self._module_export('земли', 'path_exists')
-        return path_exists(path)
-
-    def visit_ChdirNode(self, node: ChdirNode):
-        path = str(self.execute(node.path))
-        change_dir = self._module_export('земли', 'change_dir')
-        change_dir(path)
-
-    def visit_MkdirNode(self, node: MkdirNode):
-        path = str(self.execute(node.path))
-        make_dir = self._module_export('земли', 'make_dir')
-        make_dir(path)
-
-    def visit_RmtreeNode(self, node: RmtreeNode):
-        path = str(self.execute(node.path))
-        remove_tree = self._module_export('земли', 'remove_tree')
-        remove_tree(path)
-
-    def visit_RemoveNode(self, node: RemoveNode):
-        path = str(self.execute(node.path))
-        remove_file = self._module_export('земли', 'remove_file')
-        remove_file(path)
-
-    def visit_RenameNode(self, node: RenameNode):
-        src = str(self.execute(node.src))
-        dst = str(self.execute(node.dst))
-        rename_file = self._module_export('земли', 'rename_file')
-        rename_file(src, dst)
-
-    def visit_FileWriteNode(self, node: FileWriteNode):
-        path = str(self.execute(node.path))
-        text = str(self.execute(node.text))
-        write_file = self._module_export('земли', 'append_text')
-        write_file(path, text)
 
     # ── RangeNode (используется только в ForNode) ────────────────────
     def visit_RangeNode(self, node: RangeNode):
