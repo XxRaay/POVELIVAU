@@ -27,6 +27,12 @@ class PrintNode(Node):
 
 
 @dataclass
+class PrintLinesNode(Node):
+    """Построчный вывод элементов дружины (списка)."""
+    value: 'Node'
+
+
+@dataclass
 class InputNode(Node):
     name: str
     prompt: Optional['Node'] = None
@@ -240,3 +246,22 @@ class FileWriteNode(Node):
     """Вписать строку в свиток (файл)."""
     path: 'Node'
     text: 'Node'
+
+
+@dataclass
+class FileReadLinesNode(Node):
+    """Прочитать свиток (файл) и вернуть дружину строк."""
+    path: 'Node'
+
+
+@dataclass
+class FileDeleteLineNode(Node):
+    """Вычеркнуть строку из свитка (файл) по номеру (1 = первая)."""
+    path: 'Node'
+    line_no: 'Node'
+
+
+@dataclass
+class FileCreateNode(Node):
+    """Сотворить новый пустой свиток (файл)."""
+    path: 'Node'

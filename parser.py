@@ -229,6 +229,13 @@ class Parser:
             self.expect_type(TT.COMMA)
             return RenameNode(line=line, src=src, dst=dst)
 
+        # ── Файловая система: сотворить пустой свиток — Повелеваю: Сотворить свиток <expr>,
+        if self.at_kw('Повелеваю: Сотворить свиток'):
+            self.advance()
+            path_expr = self.parse_expression()
+            self.expect_type(TT.COMMA)
+            return FileCreateNode(line=line, path=path_expr)
+
         # ── Файловая система: вписать строку в свиток — Повелеваю: Вписать в свиток <expr> строку <expr>,
         if self.at_kw('Повелеваю: Вписать в свиток'):
             self.advance()
@@ -238,11 +245,22 @@ class Parser:
             self.expect_type(TT.COMMA)
             return FileWriteNode(line=line, path=path_expr, text=text_expr)
 
-        # ── Вывод: Глаголю народу / Вещаю / Кричу на всю Русь
-        if self.at_kw('Глаголю народу:', 'Вещаю:', 'Кричу на всю Русь:'):
+        # ── TXT-свитки: вычеркнуть строку — Повелеваю: Вычеркнуть из свитка <expr> строку под номером <expr>,
+        if self.at_kw('Повелеваю: Вычеркнуть из свитка'):
+            self.advance()
+            path_expr = self.parse_expression()
+            self.expect_kw('строку под номером')
+            line_expr = self.parse_expression()
+            self.expect_type(TT.COMMA)
+            return FileDeleteLineNode(line=line, path=path_expr, line_no=line_expr)
+
+        # ── Вывод: Глаголю народу / Вещаю / Вещаю построчно / Кричу на всю Русь
+        if self.at_kw('Глаголю народу:', 'Вещаю:', 'Вещаю построчно:', 'Кричу на всю Русь:'):
             self.advance()
             value = self.parse_expression()
             self.expect_type(TT.COMMA)
+            if tok.value == 'Вещаю построчно:':
+                return PrintLinesNode(line=line, value=value)
             return PrintNode(line=line, value=value)
 
         # ── Ввод с кастом: Взять слово ... в Число Цельное ... и наречь <Имя>
@@ -566,11 +584,22 @@ class Parser:
             self.advance()
             return NoneNode(line=line)
 
+        # Спец-литерал: перенос строки (аналог '\n')
+        if self.at_kw('перенос строки'):
+            self.advance()
+            return StringNode(line=line, raw="\n")
+
         # Проверка существования пути: в землях есть <expr>
         if self.at_kw('в землях есть'):
             self.advance()
             path = self.parse_atom()
             return PathExistsNode(line=line, path=path)
+
+        # TXT-свитки: прочитать свиток <expr> (возвращает дружину строк)
+        if self.at_kw('прочитать свиток'):
+            self.advance()
+            path = self.parse_atom()
+            return FileReadLinesNode(line=line, path=path)
 
         # Случайное число: из палат случайных призвать число от <A> до <B>
         if self.at_kw('из палат случайных призвать число от'):

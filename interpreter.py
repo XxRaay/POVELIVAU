@@ -96,6 +96,15 @@ class Interpreter:
         value = self.execute(node.value)
         print(value)
 
+    def visit_PrintLinesNode(self, node: PrintLinesNode):
+        value = self.execute(node.value)
+        # Ожидаем дружину (список); если нет — ведём себя как обычный print
+        if isinstance(value, list):
+            for item in value:
+                print(item)
+        else:
+            print(value)
+
     # ── Ввод ────────────────────────────────────────────────────────
     def visit_InputNode(self, node: InputNode):
         if node.prompt:
@@ -370,6 +379,15 @@ class Interpreter:
         except OSError as exc:
             raise PovelRuntimeError(f"Не удалось переименовать грамоту '{src}' в '{dst}': {exc}")
 
+    def visit_FileCreateNode(self, node: FileCreateNode):
+        path = str(self.execute(node.path))
+        try:
+            # Создаём пустой свиток (или очищаем существующий)
+            with open(path, "w", encoding="utf-8"):
+                pass
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось сотворить свиток '{path}': {exc}")
+
     def visit_FileWriteNode(self, node: FileWriteNode):
         path = str(self.execute(node.path))
         text = str(self.execute(node.text))
@@ -379,6 +397,51 @@ class Interpreter:
                 f.write(text)
         except OSError as exc:
             raise PovelRuntimeError(f"Не удалось вписать в свиток '{path}': {exc}")
+
+    def visit_FileReadLinesNode(self, node: FileReadLinesNode):
+        path = str(self.execute(node.path))
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read().splitlines()
+        except FileNotFoundError:
+            raise PovelRuntimeError(f"Свиток '{path}' не найден в землях!")
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось прочитать свиток '{path}': {exc}")
+
+    def visit_FileDeleteLineNode(self, node: FileDeleteLineNode):
+        path = str(self.execute(node.path))
+        raw_line_no = self.execute(node.line_no)
+        try:
+            line_no = int(raw_line_no)
+        except (TypeError, ValueError):
+            raise PovelRuntimeError(
+                f"Номер строки должен быть числом цельным, а явилось '{raw_line_no}'"
+            )
+        if line_no < 1:
+            raise PovelRuntimeError(
+                f"Номер строки должен быть не меньше 1, а явилось {line_no}"
+            )
+
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines(True)  # keepends=True
+        except FileNotFoundError:
+            raise PovelRuntimeError(f"Свиток '{path}' не найден в землях!")
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось прочитать свиток '{path}': {exc}")
+
+        idx = line_no - 1
+        if idx >= len(lines):
+            raise PovelRuntimeError(
+                f"В свитке '{path}' нет строки под номером {line_no} (всего строк: {len(lines)})"
+            )
+
+        del lines[idx]
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(''.join(lines))
+        except OSError as exc:
+            raise PovelRuntimeError(f"Не удалось переписать свиток '{path}': {exc}")
 
     # ── RangeNode (используется только в ForNode) ────────────────────
     def visit_RangeNode(self, node: RangeNode):

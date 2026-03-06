@@ -233,6 +233,13 @@ class TestLists(unittest.TestCase):
 """)
         self.assertEqual(out, "20")
 
+    def test_list_pretty_print_lines(self):
+        out = run("""
+Дружина именем Д с ратниками [10, 20, 30],
+Вещаю построчно: Д,
+""")
+        self.assertEqual(out, "10\n20\n30")
+
 
 class TestErrors(unittest.TestCase):
 
@@ -291,6 +298,13 @@ class TestBooleans(unittest.TestCase):
           Вещаю: "хоть один верен",
 """)
         self.assertEqual(out, "хоть один верен")
+
+    def test_newline_literal(self):
+        out = run("""
+Повелеваю: Отныне перенос строки именоваться НЛ,
+Вещаю: "Привет," сложить с НЛ сложить с "Мир",
+""")
+        self.assertEqual(out, "Привет,\nМир")
 
 
 class TestProgramStructure(unittest.TestCase):
@@ -450,6 +464,26 @@ class TestFilesystem(unittest.TestCase):
         self.assertTrue(os.path.exists("Указ_Финальный.txt"))
         self.assertFalse(os.path.exists("лишний.txt"))
 
+    def test_file_create_empty_or_truncate(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                # создаём (пустой)
+                run('Повелеваю: Сотворить свиток "новый.txt",')
+                self.assertTrue(os.path.exists("новый.txt"))
+                with open("новый.txt", "r", encoding="utf-8") as f:
+                    self.assertEqual(f.read(), "")
+
+                # очищаем существующий
+                with open("новый.txt", "w", encoding="utf-8") as f:
+                    f.write("текст")
+                run('Повелеваю: Сотворить свиток "новый.txt",')
+                with open("новый.txt", "r", encoding="utf-8") as f:
+                    self.assertEqual(f.read(), "")
+            finally:
+                os.chdir(old_cwd)
+
     def test_path_exists_expression_in_if(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             target = os.path.join(tmpdir, "сокровище.db")
@@ -499,12 +533,61 @@ class TestFilesystem(unittest.TestCase):
 """)
             finally:
                 os.chdir(old_cwd)
+            self.assertEqual(out, "Готово")
+            path = os.path.join(tmpdir, "летопись.txt")
+            with open(path, "r", encoding="utf-8") as f:
+                content = f.read()
+            self.assertEqual(content, "ПерваяВторая")
 
-        self.assertEqual(out, "Готово")
-        path = os.path.join(tmpdir, "летопись.txt")
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-        self.assertEqual(content, "ПерваяВторая")
+    def test_file_read_lines(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                with open("летопись.txt", "w", encoding="utf-8") as f:
+                    f.write("Первая\nВторая\nТретья\n")
+
+                out = run("""
+Повелеваю: Отныне прочитать свиток "летопись.txt" именоваться Строки,
+Вещаю: "[Строки]",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(out, "['Первая', 'Вторая', 'Третья']")
+
+    def test_file_delete_line_by_number(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                with open("летопись.txt", "w", encoding="utf-8") as f:
+                    f.write("Первая\nВторая\nТретья\n")
+
+                out = run("""
+Повелеваю: Вычеркнуть из свитка "летопись.txt" строку под номером 2,
+Повелеваю: Отныне прочитать свиток "летопись.txt" именоваться Строки,
+Вещаю: "[Строки]",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(out, "['Первая', 'Третья']")
+
+    def test_file_delete_line_out_of_range_raises(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                with open("летопись.txt", "w", encoding="utf-8") as f:
+                    f.write("Первая\n")
+
+                with self.assertRaises(PovelError):
+                    run('Повелеваю: Вычеркнуть из свитка "летопись.txt" строку под номером 0,')
+                with self.assertRaises(PovelError):
+                    run('Повелеваю: Вычеркнуть из свитка "летопись.txt" строку под номером 2,')
+            finally:
+                os.chdir(old_cwd)
 
 
 if __name__ == '__main__':
