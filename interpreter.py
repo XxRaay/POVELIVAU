@@ -65,7 +65,6 @@ class Interpreter:
 
         # Модули, ранее бывшие встроенными, загружаются по умолчанию
         self._load_module('земли')
-        self._load_module('http request')
 
     def _load_module(self, name: str):
         exports = get_exports(name)
@@ -79,6 +78,11 @@ class Interpreter:
             raise PovelRuntimeError(
                 f"Библиотека великая '{module_name}' не подключена. "
                 f"Изреки: Повелеваю: достать из библиотеки великой \"{module_name}\""
+            )
+        if export_name not in module:
+            raise PovelRuntimeError(
+                f"Библиотека великая '{module_name}' подключена, но не ведает "
+                f"символа '{export_name}'"
             )
         return module[export_name]
 
@@ -297,6 +301,7 @@ class Interpreter:
         candidates = [Path.cwd()]
         if self.current_file:
             candidates.append(self.current_file.parent)
+        parse_failures: List[tuple[str, str]] = []
 
         seen = set()
         for base in candidates:
@@ -311,7 +316,8 @@ class Interpreter:
                 source = path.read_text(encoding='utf-8')
                 try:
                     program = Parser(Lexer(source).tokenize()).parse()
-                except Exception:
+                except Exception as e:
+                    parse_failures.append((str(path), str(e)))
                     continue
                 if program.title != target_title:
                     continue
@@ -319,6 +325,12 @@ class Interpreter:
                 self.loaded_scrolls.add(resolved)
                 self.exec_block(program.body)
                 return
+
+        if parse_failures:
+            details = '; '.join(f"{p}: {err}" for p, err in parse_failures)
+            raise PovelRuntimeError(
+                f"Не удалось разобрать свитки рядом с землями поиска: {details}"
+            )
 
         raise PovelRuntimeError(f"Свиток с шапкой '{target_title}' не найден в ближних землях")
 
@@ -347,12 +359,16 @@ class Interpreter:
 
     def visit_HttpGetNode(self, node: HttpGetNode) -> str:
         url = self.execute(node.url)
+        if 'http request' not in self.loaded_modules:
+            self._load_module('http request')
         http_get = self._module_export('http request', 'http_get')
         return http_get(url)
 
     def visit_HttpPostNode(self, node: HttpPostNode) -> str:
         url = self.execute(node.url)
         body = self.execute(node.body)
+        if 'http request' not in self.loaded_modules:
+            self._load_module('http request')
         http_post = self._module_export('http request', 'http_post')
         return http_post(url, body)
 
