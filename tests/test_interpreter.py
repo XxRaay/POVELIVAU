@@ -507,6 +507,40 @@ class TestFilesystem(unittest.TestCase):
         self.assertEqual(content, "ПерваяВторая")
 
 
+class TestLibraries(unittest.TestCase):
+
+    def test_import_library_succeeds(self):
+        out = run("""
+Повелеваю: достать из библиотеки великой "http request",
+Глаголю народу: "Готово",
+""")
+        self.assertEqual(out, "Готово")
+
+    def test_import_scroll_by_title(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                scroll_path = os.path.join(tmpdir, "utils.pov")
+                with open(scroll_path, "w", encoding="utf-8") as f:
+                    f.write(
+                        'Свиток Утилиты "Математический свиток"\n'
+                        'Умение нарекаю Сумма(А, Б):\n'
+                        '     Повелеваю: Вернуть А сложить с Б,\n\n'
+                        'Повелеваю: Начать выполнение!\n'
+                    )
+
+                out = run("""
+Повелеваю: достать из библиотеки великой свиток "Математический свиток",
+Повелеваю: Отныне Призвать умение Сумма(2, 3) именоваться Итог,
+Глаголю народу: "[Итог]",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(out, "5")
+
+
 if __name__ == '__main__':
     print("═" * 50)
     print("  Тесты языка ПОВЕЛЕВАЮ")

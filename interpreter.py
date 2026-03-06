@@ -4,13 +4,16 @@ import sys
 import os
 import shutil
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 from nodes import *
 from errors import (
     PovelRuntimeError, UndefinedVariableError, DivisionByZeroError,
     TypePovelError, ReturnSignal, BreakSignal, ContinueSignal
 )
 import stdlib
-import requests
+from lexer import Lexer
+from parser import Parser
+from pov_modules import get_exports
 
 
 class Environment:
@@ -55,9 +58,31 @@ class Function:
 
 
 class Interpreter:
-    def __init__(self, debug: bool = False):
+    def __init__(self, debug: bool = False, current_file: Optional[str] = None):
         self.env = Environment()
         self.debug = debug
+        self.current_file = Path(current_file).resolve() if current_file else None
+        self.loaded_modules: Dict[str, Dict[str, Any]] = {}
+        self.loaded_scrolls: set[str] = set()
+
+        # Модули, ранее бывшие встроенными, загружаются по умолчанию
+        self._load_module('is')
+        self._load_module('http request')
+
+    def _load_module(self, name: str):
+        exports = get_exports(name)
+        if exports is None:
+            raise PovelRuntimeError(f"Библиотека великая '{name}' не сыскалась")
+        self.loaded_modules[name.lower()] = exports
+
+    def _module_export(self, module_name: str, export_name: str):
+        module = self.loaded_modules.get(module_name.lower())
+        if module is None:
+            raise PovelRuntimeError(
+                f"Библиотека великая '{module_name}' не подключена. "
+                f"Изреки: Повелеваю: достать из библиотеки великой \"{module_name}\""
+            )
+        return module[export_name]
 
     # ── Главный метод ───────────────────────────────────────────────
     def execute(self, node: Node) -> Any:
@@ -266,6 +291,39 @@ class Interpreter:
     def visit_VarNode(self, node: VarNode) -> Any:
         return self.env.get(node.name)
 
+    def visit_ImportLibraryNode(self, node: ImportLibraryNode):
+        self._load_module(node.name)
+
+    def visit_ImportScrollNode(self, node: ImportScrollNode):
+        target_title = node.title
+        candidates = [Path.cwd()]
+        if self.current_file:
+            candidates.append(self.current_file.parent)
+
+        seen = set()
+        for base in candidates:
+            if base in seen:
+                continue
+            seen.add(base)
+            for path in sorted(base.glob('*.pov')):
+                resolved = str(path.resolve())
+                if resolved in self.loaded_scrolls:
+                    continue
+
+                source = path.read_text(encoding='utf-8')
+                try:
+                    program = Parser(Lexer(source).tokenize()).parse()
+                except Exception:
+                    continue
+                if program.title != target_title:
+                    continue
+
+                self.loaded_scrolls.add(resolved)
+                self.exec_block(program.body)
+                return
+
+        raise PovelRuntimeError(f"Свиток с шапкой '{target_title}' не найден в ближних землях")
+
     # ── Стандартная библиотека ───────────────────────────────────────
     def visit_RandomNode(self, node: RandomNode) -> int:
         low = self.execute(node.low)
@@ -291,24 +349,14 @@ class Interpreter:
 
     def visit_HttpGetNode(self, node: HttpGetNode) -> str:
         url = self.execute(node.url)
-        try:
-            response = requests.get(url, timeout=5)
-        except requests.RequestException as exc:
-            raise PovelRuntimeError(
-                f"Вестник не смог достигнуть земель по адресу '{url}': {exc}"
-            )
-        return response.text
+        http_get = self._module_export('http request', 'http_get')
+        return http_get(url)
 
     def visit_HttpPostNode(self, node: HttpPostNode) -> str:
         url = self.execute(node.url)
         body = self.execute(node.body)
-        try:
-            response = requests.post(url, data=str(body), timeout=5)
-        except requests.RequestException as exc:
-            raise PovelRuntimeError(
-                f"Вестник с вестью не дошёл до земель по адресу '{url}': {exc}"
-            )
-        return response.text
+        http_post = self._module_export('http request', 'http_post')
+        return http_post(url, body)
 
     # ── Файловая система: Устав Управления Землями ────────────────────
 
@@ -326,7 +374,8 @@ class Interpreter:
 
     def visit_PathExistsNode(self, node: PathExistsNode) -> bool:
         path = str(self.execute(node.path))
-        return os.path.exists(path)
+        path_exists = self._module_export('is', 'path_exists')
+        return path_exists(path)
 
     def visit_ChdirNode(self, node: ChdirNode):
         path = str(self.execute(node.path))

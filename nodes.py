@@ -240,3 +240,13 @@ class FileWriteNode(Node):
     """Вписать строку в свиток (файл)."""
     path: 'Node'
     text: 'Node'
+
+
+@dataclass
+class ImportLibraryNode(Node):
+    name: str
+
+
+@dataclass
+class ImportScrollNode(Node):
+    title: str
