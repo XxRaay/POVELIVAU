@@ -1,16 +1,17 @@
 # interpreter.py — Интерпретатор языка ПОВЕЛЕВАЮ (паттерн Visitor)
 import re
 import sys
-import os
-import shutil
 from typing import Any, Dict, List, Optional
+from pathlib import Path
 from nodes import *
 from errors import (
     PovelRuntimeError, UndefinedVariableError, DivisionByZeroError,
     TypePovelError, ReturnSignal, BreakSignal, ContinueSignal
 )
 import stdlib
-import requests
+from lexer import Lexer
+from parser import Parser
+from pov_modules import get_exports, get_node_handler
 
 
 class Environment:
@@ -55,14 +56,67 @@ class Function:
 
 
 class Interpreter:
-    def __init__(self, debug: bool = False):
+    NODE_MODULES = {
+        'HttpGetNode': 'http request',
+        'HttpPostNode': 'http request',
+        'ListDirNode': 'земли',
+        'CwdNode': 'земли',
+        'PathExistsNode': 'земли',
+        'ChdirNode': 'земли',
+        'MkdirNode': 'земли',
+        'RmtreeNode': 'земли',
+        'RemoveNode': 'земли',
+        'RenameNode': 'земли',
+        'FileWriteNode': 'земли',
+    }
+
+    def __init__(self, debug: bool = False, current_file: Optional[str] = None):
         self.env = Environment()
         self.debug = debug
+        self.current_file = Path(current_file).resolve() if current_file else None
+        self.loaded_modules: Dict[str, Dict[str, Any]] = {}
+        self.loaded_scrolls: set[str] = set()
+
+        # Модули, ранее бывшие встроенными, загружаются по умолчанию
+        self._load_module('земли')
+
+    def _load_module(self, name: str):
+        exports = get_exports(name)
+        if exports is None:
+            raise PovelRuntimeError(f"Библиотека великая '{name}' не сыскалась")
+        self.loaded_modules[name.lower()] = exports
+
+    def _module_export(self, module_name: str, export_name: str):
+        module = self.loaded_modules.get(module_name.lower())
+        if module is None:
+            raise PovelRuntimeError(
+                f"Библиотека великая '{module_name}' не подключена. "
+                f"Изреки: Повелеваю: достать из библиотеки великой \"{module_name}\""
+            )
+        if export_name not in module:
+            raise PovelRuntimeError(
+                f"Библиотека великая '{module_name}' подключена, но не ведает "
+                f"символа '{export_name}'"
+            )
+        return module[export_name]
 
     # ── Главный метод ───────────────────────────────────────────────
     def execute(self, node: Node) -> Any:
         method = f'visit_{type(node).__name__}'
-        visitor = getattr(self, method, self.generic_visit)
+        visitor = getattr(self, method, None)
+        if visitor is not None:
+            return visitor(node)
+
+        node_type_name = type(node).__name__
+        required_module = self.NODE_MODULES.get(node_type_name)
+        if required_module and required_module not in self.loaded_modules:
+            self._load_module(required_module)
+
+        handler = get_node_handler(node_type_name)
+        if handler is not None:
+            return handler(self, node)
+
+        visitor = self.generic_visit
         return visitor(node)
 
     def generic_visit(self, node: Node):
@@ -266,6 +320,47 @@ class Interpreter:
     def visit_VarNode(self, node: VarNode) -> Any:
         return self.env.get(node.name)
 
+    def visit_ImportLibraryNode(self, node: ImportLibraryNode):
+        self._load_module(node.name)
+
+    def visit_ImportScrollNode(self, node: ImportScrollNode):
+        target_title = node.title
+        candidates = [Path.cwd()]
+        if self.current_file:
+            candidates.append(self.current_file.parent)
+        parse_failures: List[tuple[str, str]] = []
+
+        seen = set()
+        for base in candidates:
+            if base in seen:
+                continue
+            seen.add(base)
+            for path in sorted(base.glob('*.pov')):
+                resolved = str(path.resolve())
+                if resolved in self.loaded_scrolls:
+                    continue
+
+                source = path.read_text(encoding='utf-8')
+                try:
+                    program = Parser(Lexer(source).tokenize()).parse()
+                except Exception as e:
+                    parse_failures.append((str(path), str(e)))
+                    continue
+                if program.title != target_title:
+                    continue
+
+                self.loaded_scrolls.add(resolved)
+                self.exec_block(program.body)
+                return
+
+        if parse_failures:
+            details = '; '.join(f"{p}: {err}" for p, err in parse_failures)
+            raise PovelRuntimeError(
+                f"Не удалось разобрать свитки рядом с землями поиска: {details}"
+            )
+
+        raise PovelRuntimeError(f"Свиток с шапкой '{target_title}' не найден в ближних землях")
+
     # ── Стандартная библиотека ───────────────────────────────────────
     def visit_RandomNode(self, node: RandomNode) -> int:
         low = self.execute(node.low)
@@ -288,97 +383,6 @@ class Interpreter:
     def visit_ExitNode(self, node: ExitNode):
         print("— Всё. Почиваю. —")
         sys.exit(0)
-
-    def visit_HttpGetNode(self, node: HttpGetNode) -> str:
-        url = self.execute(node.url)
-        try:
-            response = requests.get(url, timeout=5)
-        except requests.RequestException as exc:
-            raise PovelRuntimeError(
-                f"Вестник не смог достигнуть земель по адресу '{url}': {exc}"
-            )
-        return response.text
-
-    def visit_HttpPostNode(self, node: HttpPostNode) -> str:
-        url = self.execute(node.url)
-        body = self.execute(node.body)
-        try:
-            response = requests.post(url, data=str(body), timeout=5)
-        except requests.RequestException as exc:
-            raise PovelRuntimeError(
-                f"Вестник с вестью не дошёл до земель по адресу '{url}': {exc}"
-            )
-        return response.text
-
-    # ── Файловая система: Устав Управления Землями ────────────────────
-
-    def visit_ListDirNode(self, node: ListDirNode):
-        try:
-            return os.listdir()
-        except OSError as exc:
-            raise PovelRuntimeError(f"Не удалось обозреть владения: {exc}")
-
-    def visit_CwdNode(self, node: CwdNode) -> str:
-        try:
-            return os.getcwd()
-        except OSError as exc:
-            raise PovelRuntimeError(f"Не удалось узреть имя земли текущей: {exc}")
-
-    def visit_PathExistsNode(self, node: PathExistsNode) -> bool:
-        path = str(self.execute(node.path))
-        return os.path.exists(path)
-
-    def visit_ChdirNode(self, node: ChdirNode):
-        path = str(self.execute(node.path))
-        try:
-            os.chdir(path)
-        except OSError as exc:
-            raise PovelRuntimeError(f"Не удалось сменить землю на '{path}': {exc}")
-
-    def visit_MkdirNode(self, node: MkdirNode):
-        path = str(self.execute(node.path))
-        try:
-            os.mkdir(path)
-        except OSError as exc:
-            raise PovelRuntimeError(f"Не удалось возвести чертог '{path}': {exc}")
-
-    def visit_RmtreeNode(self, node: RmtreeNode):
-        path = str(self.execute(node.path))
-        try:
-            shutil.rmtree(path)
-        except FileNotFoundError:
-            raise PovelRuntimeError(f"Чертог '{path}' не обретается в сих землях!")
-        except OSError as exc:
-            raise PovelRuntimeError(f"Не удалось предать забвению чертог '{path}': {exc}")
-
-    def visit_RemoveNode(self, node: RemoveNode):
-        path = str(self.execute(node.path))
-        try:
-            os.remove(path)
-        except FileNotFoundError:
-            raise PovelRuntimeError(f"Свиток '{path}' не найден в землях!")
-        except OSError as exc:
-            raise PovelRuntimeError(f"Не удалось изгнать свиток '{path}': {exc}")
-
-    def visit_RenameNode(self, node: RenameNode):
-        src = str(self.execute(node.src))
-        dst = str(self.execute(node.dst))
-        try:
-            os.rename(src, dst)
-        except FileNotFoundError:
-            raise PovelRuntimeError(f"Грамота '{src}' не найдена для переименования!")
-        except OSError as exc:
-            raise PovelRuntimeError(f"Не удалось переименовать грамоту '{src}' в '{dst}': {exc}")
-
-    def visit_FileWriteNode(self, node: FileWriteNode):
-        path = str(self.execute(node.path))
-        text = str(self.execute(node.text))
-        try:
-            # Дописываем в конец свитка; свиток создаётся, если его не было
-            with open(path, "a", encoding="utf-8") as f:
-                f.write(text)
-        except OSError as exc:
-            raise PovelRuntimeError(f"Не удалось вписать в свиток '{path}': {exc}")
 
     # ── RangeNode (используется только в ForNode) ────────────────────
     def visit_RangeNode(self, node: RangeNode):

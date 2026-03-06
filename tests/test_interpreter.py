@@ -17,7 +17,7 @@ from errors import PovelError, UndefinedVariableError, DivisionByZeroError, Pars
 import requests
 
 
-def run(source: str, inputs=None) -> str:
+def run(source: str, inputs=None, current_file: str | None = None) -> str:
     """Запускает программу и возвращает вывод.
 
     В тестах передаётся только тело программы; заголовок свитка и
@@ -30,7 +30,7 @@ def run(source: str, inputs=None) -> str:
     tokens = lexer.tokenize()
     parser = Parser(tokens)
     ast = parser.parse()
-    interp = Interpreter()
+    interp = Interpreter(current_file=current_file)
 
     captured = io.StringIO()
     input_iter = iter(inputs or [])
@@ -497,14 +497,106 @@ class TestFilesystem(unittest.TestCase):
 Повелеваю: Вписать в свиток "летопись.txt" строку "Вторая",
 Глаголю народу: "Готово",
 """)
+
+                self.assertEqual(out, "Готово")
+                path = os.path.join(tmpdir, "летопись.txt")
+                with open(path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.assertEqual(content, "ПерваяВторая")
             finally:
                 os.chdir(old_cwd)
 
-        self.assertEqual(out, "Готово")
-        path = os.path.join(tmpdir, "летопись.txt")
-        with open(path, "r", encoding="utf-8") as f:
-            content = f.read()
-        self.assertEqual(content, "ПерваяВторая")
+
+class TestLibraries(unittest.TestCase):
+
+    def test_import_library_succeeds(self):
+        source = '''Свиток Теста "Тест"
+Повелеваю: достать из библиотеки великой "http request",
+
+Повелеваю: Начать выполнение!'''
+
+        lexer = Lexer(source)
+        tokens = lexer.tokenize()
+        parser = Parser(tokens)
+        ast = parser.parse()
+        interp = Interpreter()
+
+        self.assertNotIn('http request', interp.loaded_modules)
+        interp.execute(ast)
+        self.assertIn('http request', interp.loaded_modules)
+
+    def test_import_scroll_by_title(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                scroll_path = os.path.join(tmpdir, "utils.pov")
+                with open(scroll_path, "w", encoding="utf-8") as f:
+                    f.write(
+                        'Свиток Утилиты "Математический свиток"\n'
+                        'Умение нарекаю Сумма(А, Б):\n'
+                        '     Повелеваю: Вернуть А сложить с Б,\n\n'
+                        'Повелеваю: Начать выполнение!\n'
+                    )
+
+                out = run("""
+Повелеваю: достать из библиотеки великой свиток "Математический свиток",
+Повелеваю: Отныне Призвать умение Сумма(2, 3) именоваться Итог,
+Глаголю народу: "[Итог]",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(out, "5")
+
+    def test_import_scroll_by_title_uses_current_file_directory(self):
+        with tempfile.TemporaryDirectory() as project_dir, tempfile.TemporaryDirectory() as other_cwd:
+            main_scroll_path = os.path.join(project_dir, "main.pov")
+            with open(main_scroll_path, "w", encoding="utf-8") as f:
+                f.write(
+                    'Свиток Главный "Главный свиток"\n'
+                    'Повелеваю: Начать выполнение!\n'
+                )
+
+            utils_path = os.path.join(project_dir, "utils.pov")
+            with open(utils_path, "w", encoding="utf-8") as f:
+                f.write(
+                    'Свиток Утилиты "Свиток рядом"\n'
+                    'Умение нарекаю Сумма(А, Б):\n'
+                    '     Повелеваю: Вернуть А сложить с Б,\n\n'
+                    'Повелеваю: Начать выполнение!\n'
+                )
+
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(other_cwd)
+                out = run("""
+Повелеваю: достать из библиотеки великой свиток "Свиток рядом",
+Повелеваю: Отныне Призвать умение Сумма(7, 8) именоваться Итог,
+Глаголю народу: "[Итог]",
+""", current_file=main_scroll_path)
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(out, "15")
+
+    def test_import_scroll_reports_parse_error_with_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            broken = os.path.join(tmpdir, "broken.pov")
+            with open(broken, "w", encoding="utf-8") as f:
+                f.write('Свиток Утилиты "Сломанный"\nПовелеваю: Отныне 1 именоваться\n')
+
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmpdir)
+                with self.assertRaises(PovelError) as cm:
+                    run("""
+Повелеваю: достать из библиотеки великой свиток "Неважно",
+""")
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertIn("broken.pov", str(cm.exception))
 
 
 if __name__ == '__main__':
